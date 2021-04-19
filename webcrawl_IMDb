@@ -1,0 +1,314 @@
+import requests
+from requests import get
+from bs4 import BeautifulSoup
+
+from time import sleep
+from time import time
+start_time = time()
+requests = 0
+
+import random
+from random import randint
+from IPython.display import clear_output
+
+from operator import itemgetter
+from itertools import groupby
+
+import numpy as np
+import matplotlib.pyplot as plt
+
+
+'''
+# log in IMDb first in order to obtain my own personal ratings
+session = requests.Session()
+payload = {
+    'email':'placeholder',
+    'password':'placeholder'
+    }
+# login info
+payload = {'appActionToken':'izXDj2BVRfSIj2Bkj2Bgpqij2BMI58AYu1cj3D', 'appAction':'SIGNIN', 'email':'placeholder', 'password':'placeholder'}
+# passing info into website
+login = session.post('https://www.imdb.com/ap/signin', data=payload)
+# obtain html element
+'''
+
+page_no = [str(i) for i in range(1,5)]
+headers = {"Accept-Language": "en-US, en;q=0.5"}
+
+# initialise empty arrays to store the movie info
+names = []
+years = []
+ratings = []
+directors = []
+min_rating = 1 # only store films for which the ratings are at least min_rating
+min_no_of_ratings = 4
+
+# url MUST be updated each time since the link changes every time...
+url = [
+    'https://www.imdb.com/user/ur78632976/ratings?sort=date_added%2Cdesc&mode=detail&paginationKey=mfq5ijak6z7uymjwuuwsomnsegc22mf3zwe5pmwfeyxxj5aiuhpj4lgkygdgl7quy6edo65uxd4lmz2a7kaiiyyemj7dgo7u7jgxq4ehuvqvnerdjmvjsdpwexygfq5fzwyyxbc7rrhb564pajlxuqffl4f7yiuinvqyvtwsdvqknd4xzupds7c3jio2pz4bh354bce2o7oqtd2c&lastPosition=0',
+    'https://www.imdb.com/user/ur78632976/ratings?sort=date_added%2Cdesc&mode=detail&paginationKey=mfq5ijak6z7uymjwuuwsomnsegl34knnqsdztp6xeepepyyfxdfiwpol52uhtjimq3iwclnm7gq7uk2y4kjya3ynnn3dunpv6vbx45u47iyfrvleknv4axfhhxudjs5nyx6ihb25rvdr564pajlxuqffl4f7yiuinvqyvtwsdvqknd4xzupds7flvqkklxr5pr6tgc73o3mdk2at&lastPosition=100',
+    'https://www.imdb.com/user/ur78632976/ratings?sort=date_added%2Cdesc&mode=detail&paginationKey=mfq5ijak6z7uymjwuuwsomnsegl34knnqsdztp6xeepepyyfxdfiwpol52uhtjimq3iwclnm7gq7uk2y4kjya3qimz7tmo7v7ndxy5e47iyfrvleknv4axfhhxudjs5nyx7ivd2zqrhajjg6bqac2wheaznk2ouqhjumdqo4dbq23amw3fats7f7gxdemae3huut65k3a5fqyxt4he&lastPosition=200',
+    'https://www.imdb.com/user/ur78632976/ratings?sort=date_added%2Cdesc&mode=detail&paginationKey=mfq5ijak6z7uymjwuuwsomnsegl34knnqsdztp6xeepepyyfxdfiwpol52uhtjimq3iwclnm7gq7uk2y4kjyayamnnydmnxw7baxw5447iyfrvleknv4axfhhxudjs5nyx7yjac7rvhqjjg6bqac2wheaznk2ouqhjumdqo4dbq23amw3fats7f7lzu22uex4xwd6jc25gotmwqbty&lastPosition=300'
+    ]
+
+for link in url:
+
+    url = link
+    response = get(url, headers=headers) # headers is for getting the US film name (see above)
+
+    # pause the loop (in order not to bombard the site with too many requests)
+    sleep(randint(8,15))
+    # monitor the requests
+    requests += 1
+    elapsed_time = time() - start_time
+    print('Request:{}; Frequency: {} requests/s'.format(requests, requests/elapsed_time))
+    clear_output(wait = True)
+
+
+    soup = BeautifulSoup(response.text, 'html.parser')
+    # print(soup)
+    # each movie_container array element contains the info for one movie (100 movie_container per page)
+    movie_container = soup.find_all('div', class_ = 'lister-item mode-detail')
+    # print(len(movie_container))
+    # rating = movie_container[0].find_all('span', class_ = 'ipl-rating-star__rating')
+    # rating = float( rating[1].text )
+    # print(rating)
+
+
+    data = open('Data.txt', 'a', encoding="utf-8") # create text file to store the data
+    # encoding="utf-8" is to ensure the non-English characters appear properly in text files
+
+
+    # obtain the movie info by going through each film one by one
+    for container in movie_container:
+        rating = container.find_all('span', class_ = 'ipl-rating-star__rating')
+        rating = float( rating[1].text ) # rating[0] for IMDb rating; rating[1] for my rating
+        
+        if rating >= min_rating:
+            # add the data to the corresponding arrays if the film's rating >= 7
+            ratings.append(rating)
+
+            name = container.h3.a.text
+            names.append(name)
+
+            year = container.h3.find('span', class_ = 'lister-item-year text-muted unbold').text
+            years.append(year)
+
+            film_info = container.find_all('p', class_ = 'text-muted text-small')
+            director_cast = film_info[1].find_all('a') # director_cast contains the film's director AND cast
+            director = director_cast[0].text
+            directors.append(director)
+            '''
+            # MUST disable this part to generate the graphs correctly
+            if len(director_cast) > 5: # this is for considering films with more than 1 director
+                for i in range( 1 , (len(director_cast)-4) ):
+                    director = director_cast[i].text
+                    directors.append(director)
+                    ratings.append(rating)
+                    names.append(name)
+            '''
+            print(name, year, rating, director, file=data)
+
+    data.close()
+
+
+dir_rating_temp = () # for storing directors and their ratings in a group
+dir_rating = [] # for storing each group of director and his/her ratings in a giant list
+for i in range(0,len(directors)):
+    dir_rating_temp = (directors[i], ratings[i])
+    dir_rating.append(dir_rating_temp)
+
+sortkey = itemgetter(0) # itemgetter(n) calls the nth element in each group in a list
+dir_rating.sort(key=sortkey) # in this case, this sorts by the 0th element in each group in dir_rating[], i.e. directors
+# result is sth like [('Christopher Nolan', 9), ('Hayao Miyazaki', 8), ('Hayao Miyazaki', 10), ('Stanley Kubrick', 10), ('Stanley Kubrick', 9), ('Stanley Kubrick', 10)]
+
+result = {} # create a dictionary
+for key, values_iter in groupby(dir_rating, key=sortkey): # values_iter stands for the iterating values, i.e. ratings
+    # result[key] = list(v[1] for v in values_iter)
+    # above code is for creating dictionary, i.e. sth like {'Christopher Nolan': [9], 'Hayao Miyazaki': [8, 10], 'Stanley Kubrick': [10, 9, 10]}
+    ratings_sum = 0
+    no_of_ratings = 0 # for finding the average ratings of each director
+
+    for v in values_iter:
+        ratings_sum += v[1] # each v[1] corresponds to a rating (since it is the iterating value)
+        no_of_ratings += 1
+    
+    if no_of_ratings >= min_no_of_ratings:
+        result[key] = [ratings_sum / no_of_ratings, no_of_ratings] # this is the average rating for a certain director 
+    else:
+        result[key] = [0,0] # can easily filter out since it is impossible to have a rating of 0 on IMDb
+    
+    # result should be sth like {'Christopher Nolan': 9.0, 'Hayao Miyazaki': 9.0, 'Stanley Kubrick': 9.666666666666666}
+
+# sort the directors by their average ratings (by converting the dictionary back to list again)
+result_sorted = sorted(result.items(), key=lambda x: x[1], reverse=True)
+# sort by the second element in each tuple [avg rating, no of films]
+# reverse=True --> sort by descending order
+
+ranking = open('Ranking.txt', 'a', encoding="utf-8")
+
+print('Only films with IMDb rating >= 7 are counted', file=ranking)
+print( '{:<5s} {:<30s} {:<30s} {:<10s}'.format('', 'Director', 'Average rating', 'Number of films') , file=ranking)
+
+rank = 1
+for i in range(0,len(result_sorted)):
+    if result_sorted[i][1][0] != 0:
+        # if avg rating is the same between two or more positions, show the same ranking number
+        if i > 0:
+            string_one = ''
+            if result_sorted[i][1][0] != result_sorted[i-1][1][0]:
+                string_one = str(i+1) + '.'
+                rank = i
+            else:
+                string_one = str(rank+1) + '=.' # plus 1 here becuase i starts from 0
+        elif i == 0:
+            string_one = str(i+1) + '.'
+
+        string_two = result_sorted[i][0]
+        string_three = str(result_sorted[i][1][0])
+        string_four = str(result_sorted[i][1][1])
+        print( '{:<5s} {:<30s} {:<30s} {:<10s}'.format(string_one, string_two, string_three, string_four) , file=ranking)
+        # print(i+1, '. \t', result_sorted[i][0],'\t\t', result_sorted[i][1], sep='')
+        # without sep='', there would be a space between a variable and a string
+
+ranking.close()
+
+
+
+# we now want to plot a rating distribution graph for directors from whom I've seen at least 6 films
+director_film = {}
+film_rating_year = {}
+
+dir_film_temp = () # for storing directors and their films in a group
+dir_film = [] # for storing each group of director and his/her ratings in a giant list
+for i in range(0,len(directors)):
+    dir_film_temp = (directors[i], names[i])
+    dir_film.append(dir_film_temp)
+# result is sth like [('Hayao Miyazaki', 'Spirited Away'), ('Christopher Nolan', 'Interstellar'), ('Hayao Miyazaki', 'Princess Mononoke')]
+
+sortkey = itemgetter(0) # itemgetter(n) calls the nth element in each group in a list
+dir_film.sort(key=sortkey) # in this case, this sorts by the 0th element in each group in dir_film[], i.e. directors
+# result is sth like [('Christopher Nolan', 'Interstellar'), ('Hayao Miyazaki', 'Princess Mononoke'), ('Hayao Miyazaki', 'Spirited Away')]
+print(dir_film)
+
+for key, values_iter in groupby(dir_film, key=itemgetter(0)):  # values_iter stands for the iterating values, i.e. film names
+    director_film[key] = list(v[1] for v in values_iter)
+# result is sth like {'Hayao Miyazaki': ['Princess Mononoke', 'The Wind Rises'], 'Stanley Kubrick': ['2001: A Space Odyssey', 'Barry Lyndon', 'Dr Strangelove'], 'Christopher Nolan': ['Interstellar']}
+print(director_film)
+
+ratingANDyear = list(zip(ratings, years))
+film_rating_year = dict(zip(names, ratingANDyear))
+# result is sth like {'Princess Mononoke': [10, 1997], 'The Wind Rises': [9, 2013], '2001: A Space Odyssey': [10, 1963], 'Barry Lyndon': [10, 1975], 'Dr Strangelove': [8, 1964], 'Interstellar': [8, 2014]}
+print(film_rating_year)
+
+directors = list(set(directors)) # get rid of repeated names
+print(directors)
+
+for director in directors:
+    # print(director)
+    # go through each director
+    
+    if len(director_film[director]) >= 6: # only want the directors from whom I've seen at least 2 films
+        temp_list = []
+        film_name = []      # remember NOT to code it in one line i.e. film_name = [], film_rating = [], film_year = []
+        film_rating = []    # would give ValueError: not enough values to unpack
+        film_year = []      # wasted a lot of time figuring this out
+        film_information = []
+
+        for i in range(0,len(director_film[director])):
+            filmName = director_film[director][i]
+            filmRating = film_rating_year[filmName][0]
+            filmYear = film_rating_year[filmName][1]
+            filmInfo = str(filmName) + ' (' + str(filmYear) + ')'
+
+            film_name.append(filmName)
+            film_rating.append(filmRating)
+            film_year.append(filmYear)
+            film_information.append(filmInfo)
+
+        number_of_films = len(film_name)
+
+
+        # want to sort the films of a particular director by year --> put them in a temporary list and sort
+        for j in range(0,number_of_films):
+            temp_element = ()
+            temp_element = (film_name[j], film_rating[j], film_year[j])
+            temp_list.append(temp_element)
+        sortkey = itemgetter(2) # itemgetter(n) calls the nth element in each group in a list
+        temp_list.sort(key=sortkey)
+
+
+        # put them back into the corresponding lists with the new order
+        film_name = []
+        film_rating = []
+        film_year = []
+        film_information = []
+
+        for k in range(0,number_of_films):
+            filmName = temp_list[k][0]
+            filmRating = temp_list[k][1]
+            filmYear = temp_list[k][2]
+            filmInfo = str(filmName) + ' ' + str(filmYear)
+        
+            film_name.append(filmName)
+            film_rating.append(filmRating)
+            film_year.append(filmYear)
+            film_information.append(filmInfo)
+
+        # print(film_information)
+
+        for i in range(0, len(director_film[director])):
+            fig, ax = plt.subplots()
+            plt.xlim(0, 11)
+
+            # create bars and choose colour
+            # plt.bar(y_pos, height, color = (0.5,0.1,0.5,0.6))
+
+            graph_films = film_information
+            y_pos = np.arange(len(graph_films)) # note the spelling: aRange, NOT aRRange
+            graph_ratings = film_rating
+
+            ax.barh(y_pos, graph_ratings, align='center')
+            ax.set_yticks(y_pos)
+            ax.set_yticklabels(graph_films)
+            ax.invert_yaxis()
+            ax.set_xlabel('Ratings')
+            ax.set_title(director)
+
+            # choose whether to have the graph pop up in a window or to save it as a jpg image file
+            # plt.show()
+            plt_name = str(director) + '.jpg'
+            plt.savefig(plt_name, bbox_inches='tight')
+            plt.close(fig) # remember to close it or we would encounter Runtime Warning
+
+
+
+# we now want to print a total rating distribtion
+ratings_count = {i:ratings.count(i) for i in ratings}
+
+counter = []
+rating_no = []
+for i in range(1,11):
+    rating_no.append(i)
+    if i in ratings_count:
+        counter.append(ratings_count[i])
+    else:
+        counter.append(0)
+
+print(rating_no)
+print(counter)
+
+fig2, ax2 = plt.subplots()
+
+x = np.arange(10)
+plt.bar(x, height=counter)
+plt.xticks(x, rating_no)
+
+ax2.set_xlabel('Ratings')
+ax2.set_ylabel('Count')
+ax2.set_title('My film rating distribution')
+
+# choose whether to have the graph pop up in a window or to save it as a jpg image file
+# plt.show()
+plt.savefig('ratingDistrib.jpg', bbox_inches='tight')
+plt.close(fig2)
